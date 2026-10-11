@@ -64,6 +64,32 @@ const XYZ: Backer = { name: ".XYZ", href: "https://gen.xyz", src: "/logos/xyz.sv
 /** Backing FOSS Forge 2.0 right now. */
 export const CURRENT_SPONSORS: Backer[] = [KIWIX, FOSS_UNITED, CODECRAFTERS, ELEVENLABS, XYZ, UNSTOP];
 
+/** A community standing with us. Its card goes to `href`, and shows `label` under the name. */
+export type Partner = {
+  name: string;
+  /** Their Instagram page, or their website. */
+  href: string;
+  /** What the card shows under the name: their Instagram handle, or the address of their website. */
+  label: string;
+  /** Which of the two `href` is, so the card shows the right icon and says where it goes. */
+  kind: "instagram" | "website";
+  /** A square picture in public/. */
+  src: string;
+};
+
+/** The communities partnering with us for FOSS Forge 2.0, shown under the sponsors. */
+export const COMMUNITY_PARTNERS: Partner[] = [
+  { name: "UI Pixel", href: "https://www.instagram.com/ui.pixel/", label: "@ui.pixel", kind: "instagram", src: "/logos/ui-pixel.webp" },
+  {
+    name: "DevSphere",
+    href: "https://www.instagram.com/devsphereindia/",
+    label: "@devsphereindia",
+    kind: "instagram",
+    src: "/logos/devsphere.webp",
+  },
+  { name: "Backstage", href: "https://www.mybackstage.in/", label: "mybackstage.in", kind: "website", src: "/logos/backstage.webp" },
+];
+
 /** Who backed which event of ours, newest first. Links go to the event pages. */
 export const PAST_BACKERS: { event: string; when: string; href: string; poster?: string; backers: Backer[] }[] = [
   { event: "Build with TRAE", when: "Mar 2026", href: "/events/build-with-trae", backers: [MINIMAX, TRAE] },

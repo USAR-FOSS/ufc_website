@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { MaskLine, Reveal } from "@/components/home/motion-primitives";
+import { CommunityPartners } from "./community-partners";
 import { SponsorLogo } from "./sponsor-logo";
 import { CURRENT_SPONSORS, FORGE, type Backer } from "./support-data";
 
@@ -68,6 +69,8 @@ export function Upcoming() {
             </Reveal>
           </li>
         </ul>
+
+        <CommunityPartners />
       </div>
     </>
   );
