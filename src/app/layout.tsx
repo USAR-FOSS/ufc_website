@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Caveat, DM_Sans, Fraunces, Pixelify_Sans, Space_Mono } from "next/font/google";
+import { Bricolage_Grotesque, DM_Sans, Fraunces, Pixelify_Sans, Space_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -33,10 +34,15 @@ const spaceMono = Space_Mono({
   weight: ["400", "700"],
 });
 
-const caveat = Caveat({
+// Caveat is kept in the repository rather than fetched from Google at build time. One build on Vercel got an answer for it that the font
+// loader could not read, which failed the whole deployment, and a file we hold ourselves cannot do that. It is the latin subset of the
+// variable font (weights 400 to 700), which is the part of it the site uses.
+const caveat = localFont({
+  src: "./fonts/caveat-latin.woff2",
   variable: "--font-hand",
-  subsets: ["latin"],
-  weight: ["500", "700"],
+  weight: "400 700",
+  display: "swap",
+  adjustFontFallback: "Arial",
 });
 
 const pixelify = Pixelify_Sans({
