@@ -89,9 +89,17 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === OIDC_PROVIDER_ID) {
         const claims = oidcClaims(profile);
         if (!claims) return false;
-        const user = await prisma.user.findUnique({ where: { githubId: claims.githubId }, select: TOKEN_FIELDS });
+        const user = await prisma.user.findUnique({
+          where: { githubId: claims.githubId },
+          select: { ...TOKEN_FIELDS, leetcodeUsername: true },
+        });
         if (user && (await hasUsableGitHubConnection(user))) {
           await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date() } });
+          // The same refresh a GitHub sign in does: their numbers are brought up to date in the background on every sign in.
+          if (user.leetcodeUsername) {
+            await enqueueLeetCodeSync(user.id, "login").catch((error) => console.error("Unable to enqueue the LeetCode sync:", error));
+          }
+          await enqueueGitHubSync(user.id, "login").catch((error) => console.error("Unable to enqueue the GitHub sync:", error));
           return true;
         }
         const hint = /^[A-Za-z0-9-]{1,39}$/.test(claims.login) ? `&hint=${claims.login}` : "";
