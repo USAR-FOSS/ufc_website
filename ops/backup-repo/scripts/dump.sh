@@ -3,6 +3,7 @@
 #
 #   needs:  BACKUP_DATABASE_URL  direct address of the database, using the read-only ufc_backup login
 #           AGE_PUBLIC_KEY       the public key (age1...) the file is encrypted to. Only the matching private key can open it.
+#           CORE_TABLES          optional: comma separated tables that must exist (default: the website's). Set it for another database.
 #           RESTORE_CHECK_URL    an empty scratch Postgres to test the restore in (the workflow provides one). Without it the script
 #                                refuses to run, because an untested backup is not worth publishing; set SKIP_RESTORE_CHECK=yes to say
 #                                you know (for a quick local try, never for the scheduled job).
@@ -68,9 +69,12 @@ if [ -n "${RESTORE_CHECK_URL:-}" ]; then
   python3 - "$out/before.txt" "$out/after.txt" "$out/restored.txt" <<'PY'
 import sys
 
-# Tables the club's data cannot exist without. If the database being backed up does not have these, it is the wrong database, or something
-# has gone badly wrong, and a "passing" check on whatever is left would mean nothing.
-CORE = {"users", "events", "event_attendees", "github_stats", "leetcode_stats", "activities"}
+# Tables the data cannot exist without. If the database being backed up does not have these, it is the wrong database, or something
+# has gone badly wrong, and a "passing" check on whatever is left would mean nothing. The website's tables unless CORE_TABLES (a comma
+# separated list) says otherwise, which is how a different database (the OIDC service's) is checked.
+import os
+DEFAULT_CORE = "users,events,event_attendees,github_stats,leetcode_stats,activities"
+CORE = {t.strip() for t in os.environ.get("CORE_TABLES", DEFAULT_CORE).split(",") if t.strip()}
 
 
 def read(path):

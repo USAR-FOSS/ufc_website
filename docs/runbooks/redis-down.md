@@ -1,4 +1,4 @@
-# Redis (Upstash) is down or out of commands
+# Redis (Upstash) is down or refusing commands
 
 _Last checked: not yet._
 
@@ -8,15 +8,15 @@ without it: reads go to the database, the rate limiter lets requests through, an
 ## What you will notice
 
 - The leaderboard and members lists are slower (each request goes to the database). This is the main risk: more database work means more
-  compute hours.
+  more load on it.
 - Dashboards stop updating live.
 - `Upstash` errors in the Vercel logs: `max requests limit exceeded`, `daily request limit`, or timeouts.
 
 ## Steps
 
 1. Upstash console, the database, **Usage**. Out of commands or bandwidth, or a real outage?
-2. **Out of commands** (the free plan counts per month):
-   - Create another free database in a different Upstash account (an officer's), and set it as the **state** database
+2. **Refusing commands** (Upstash says a limit was reached):
+   - Create another database (in your Upstash account, or another officer's), and set it as the **state** database
      (`UPSTASH_REDIS_STATE_REST_URL` and `_TOKEN`) or as an extra cache database (`UPSTASH_REDIS_CACHE_2_REST_URL` and `_TOKEN`). Redeploy.
      That moves a share of the traffic to it. See `docs/data-protection.md` for which is which.
    - Or raise `CACHE_L1_SECONDS` (default 5) to 15 to take more reads off Redis, at the cost of data that is up to 15 seconds old.

@@ -60,7 +60,7 @@ The site is not a brochure with a list of features. It tries to explain the club
 
 ## Running it locally
 
-You need Node.js and a PostgreSQL database. A free Neon or Supabase database works fine.
+You need Node.js and a PostgreSQL database. A Neon or Supabase database works fine.
 
 ```bash
 git clone https://github.com/USAR-FOSS/ufc_website.git

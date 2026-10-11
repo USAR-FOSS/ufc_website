@@ -2,8 +2,7 @@
 
 _Last checked: not yet. Fix anything that was wrong when you follow it, and put the date here._
 
-Use this when the production database is unreachable for more than about an hour (a Neon outage, an account problem, or compute hours used
-up and the month is far from over), or when it is gone and restoring a backup into a new database would take longer.
+Use this when the production database is unreachable for more than about an hour (a Neon outage, an account problem, or the project's limits reached), or when it is gone and restoring a backup into a new database would take longer.
 
 **What you give up.** The standby is refreshed from a backup every 6 hours, so it can be up to 6 hours behind. Things done in that window
 (a sign up, an event, a registration) are missing and have to be done again. Everything GitHub and LeetCode related fills itself back in.

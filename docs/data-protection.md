@@ -17,8 +17,8 @@ delete, and make a bad command or a leaked secret unable to destroy it.
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `src/server/db/prisma.ts`                | Small connection pool per instance, idle connections released, warning when the direct Neon address is used in production, optional read replica (`prismaRead`)                                                             | A thousand people means many server instances, and each one opening up to 10 connections is how a database runs out of them |
 | `prisma.config.ts`, `prisma/db-guard.ts` | `DIRECT_URL` for migrations, and Prisma commands and the seed script refuse to touch the production host from a laptop                                                                                                      | The most likely way to lose everything is a local command run against production                                            |
-| `src/server/features/live/*`             | The scheduled poll does nothing (one Redis read) after 3 hours with nobody on the site. It loads only member ids first, and full rows only for the members who are due.                                                     | The poll used to keep the database awake all day and read everyone every run, and it silently stopped at 500 members        |
-| `src/server/cache/*`                     | A few seconds of in-memory cache per instance, one database call for a crowd asking the same thing, cache namespaces spread over several Redis databases, working memory (the poll's notes, locks) separated from the cache | Redis commands are the free plan's limit, and the same few answers are asked for by everyone at once                        |
+| `src/server/features/live/*`             | The scheduled poll does nothing (one Redis read) after 3 hours with nobody on the site. It loads only member ids first, and full rows only for the members who are due.                                                     | The poll used to keep the database busy all day and read everyone every run, and it silently stopped at 500 members         |
+| `src/server/cache/*`                     | A few seconds of in-memory cache per instance, one database call for a crowd asking the same thing, cache namespaces spread over several Redis databases, working memory (the poll's notes, locks) separated from the cache | Every Redis command is a network round trip, and the same few answers are asked for by everyone at once                     |
 | `src/app/api/stream/dashboard/route.ts`  | Version check every 10 s instead of 5, and one write per server for everyone watching instead of one per viewer                                                                                                             | These were the two things that grew with the number of viewers                                                              |
 | `leaderboard`, `stats` routes            | Load only the columns they show                                                                                                                                                                                             | Each member's row holds a whole year's contribution calendar, and the leaderboard loaded all of them                        |
 | `ops/`                                   | The SQL for restricted logins, and the backup job to put in its own repository                                                                                                                                              | See below                                                                                                                   |
@@ -43,11 +43,11 @@ the people looking see no difference. Run `npm run jobs:schedule` after deployin
 
 ## Do these, in this order
 
-### 1. Neon: pooled address, direct address, size cap (15 minutes)
+### 1. Neon: pooled address, direct address, compute size (15 minutes)
 
 1. Neon console, your project, **Connect**. Note there are two addresses: with **Pooled connection** on, the host contains `-pooler`.
 2. In Vercel, set `DATABASE_URL` to the **pooled** one. Keep what you have as `DIRECT_URL` on your machine (`.env`).
-3. In Neon, **Compute**, set the autoscaling **maximum to 0.25 CU**. Leave **scale to zero** on.
+3. In Neon, **Compute**, set the autoscaling **maximum to 0.25 CU** (plenty for this site). Leave **scale to zero** on.
 4. Redeploy. Check `npm run db:ping` prints `pooled`.
 
 ### 2. Neon: restricted logins and a development branch (30 minutes)
@@ -87,11 +87,11 @@ the people looking see no difference. Run `npm run jobs:schedule` after deployin
 Pick a second place for a spare database that is **not** Neon account A. In order of simplicity:
 
 - **A second Neon account** owned by another officer, a project with a database. Same tools, same console.
-- **Supabase** free project. If the backup job cannot connect to it, use its **Session pooler** address (the plain one is IPv6 only and
+- **Supabase** project. If the backup job cannot connect to it, use its **Session pooler** address (the plain one is IPv6 only and
   GitHub's runners do not use IPv6).
 
-Free plans change, so check the current limits and that the spare will not be paused for being quiet (the 6 hourly refresh counts as
-activity, which is another reason it is scheduled that often).
+Check the provider's current terms, and that the spare will not be paused for being quiet (the 6 hourly refresh counts as activity,
+which is another reason it is scheduled that often).
 
 1. Create the project and database, and note its **direct** address and owner login.
 2. In the backup repository add it as the secret `STANDBY_1_URL`. A third place goes in `STANDBY_2_URL`.
@@ -102,18 +102,17 @@ activity, which is another reason it is scheduled that often).
 
 ### 5. Redis: spread the load (20 minutes)
 
-You said you would get more accounts. The least confusing way:
+To spread the load over more databases:
 
-1. **State database.** In another Upstash account (an officer's), create a free Redis database. In Vercel set
+1. **State database.** In Upstash, create another Redis database (in your account or another officer's). In Vercel set
    `UPSTASH_REDIS_STATE_REST_URL` and `UPSTASH_REDIS_STATE_REST_TOKEN`. The live poll's notes, locks and the sign-in-again list move there.
-   Their count of commands stays within its own allowance.
-2. **A second cache database**, if the main one still runs short: another account, a free database, and set
+   They no longer share a database with the cache.
+2. **A second cache database**, if the main one is still busy: another database, and set
    `UPSTASH_REDIS_CACHE_2_REST_URL` and `_TOKEN`. Part of the cache (the leaderboard and dashboard lists) moves to it. Add `CACHE_3`… the same way.
 3. Redeploy. Open the dashboard and, in each Upstash console, watch the **Commands** graph move.
 
-Things to know: separate free accounts to add allowance is something providers can object to, so check their terms. A cheaper first step
-is already in the code: the in-memory cache (`CACHE_L1_SECONDS`) and the slower version check. And nothing in Redis is precious: losing a
-database costs a few slow minutes, never data.
+Things to know: the in-memory cache (`CACHE_L1_SECONDS`) and the slower version check are already in the code and take most of the load.
+And nothing in Redis is precious: losing a database costs a few slow minutes, never data.
 
 ### 6. Make the schedule match, and check (10 minutes)
 
@@ -127,8 +126,8 @@ database costs a few slow minutes, never data.
 
 Neon console, **Compute**, **Add Read Replica**, maximum 0.25 CU, scale to zero on. Set its address as `DATABASE_REPLICA_URL` and redeploy.
 Only the live poll's lists of who to check use it, and that is on purpose: anything that feeds a cache or follows a write must read from
-the primary, or a lagging replica would put an old answer in front of everyone. It also uses compute hours of its own, so watch **Usage** for a
-day after adding it and remove it if the numbers climb.
+the primary, or a lagging replica would put an old answer in front of everyone. It is a second compute that runs on its own, so watch **Monitoring** for
+a day after adding it and remove it if it turns out to add nothing.
 
 ## Things nobody can recover for you
 
@@ -143,7 +142,7 @@ Keep these in the password manager. They are not in the database, so a restored 
 ## What this does not protect against
 
 - Someone with the owner password. Keep it off Vercel and off laptops that are not needed for migrations.
-- Everything done in the last 6 hours before a total loss. That is the price of free. Neon's own history covers recent mistakes much more
+- Everything done in the last 6 hours before a total loss. That is the trade-off of a copy taken every 6 hours. Neon's own history covers recent mistakes much more
   finely than the backups do; the backups cover the day Neon itself is the problem.
 - A bug that deletes rows with the site's own login. The restricted login stops structure changes, not `DELETE`. The point-in-time history
   and the backups are the answer to that, which is what the runbook is for.

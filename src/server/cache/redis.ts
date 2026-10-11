@@ -3,7 +3,7 @@ import { Redis } from "@upstash/redis";
 
 /**
  * Which Redis database each kind of data lives in. Everything works with a single database (the default), and each extra database that is
- * configured takes a share of the load off it, so a free plan's command limit is per database rather than for the whole site.
+ * configured takes a share of the load off it, so each database carries only its own part of the traffic.
  *
  *   UPSTASH_REDIS_REST_URL / _TOKEN             the main database: the cache and the rate limiter. Required for Redis to be used at all.
  *   UPSTASH_REDIS_STATE_REST_URL / _TOKEN       optional. What the site must remember between requests (the live poll's notes, locks, who has

@@ -53,6 +53,48 @@ jobs:
 
       - run: npm run lint
 
+  migrations:
+    name: Migrations build the schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # A throwaway Postgres. The point is to prove that the files in prisma/migrations, applied to an empty database, produce exactly the
+    # schema in schema.prisma. A change to the schema that comes without its migration (or the other way round) fails here, instead of
+    # surprising whoever next builds a database from the files.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply every migration to an empty database
+        run: npx prisma migrate deploy
+
+      # Exit code 0 means "nothing to change", 2 means the database built from the files differs from schema.prisma.
+      - name: The result must equal schema.prisma
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code --script
+
   build:
     name: Build and open on localhost:3000
     runs-on: ubuntu-latest
