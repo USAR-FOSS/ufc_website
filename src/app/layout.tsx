@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, DM_Sans, Fraunces, Pixelify_Sans, Space_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
@@ -9,46 +8,68 @@ import { REVEAL_SCRIPT } from "@/components/home/reveal-script";
 import { SITE, jsonLd } from "@/data/site";
 
 // Landing-page type system: a chunky grotesque for display, a wonky soft serif for emphasis, a warm sans for reading, a quirky mono for labels.
-const bricolage = Bricolage_Grotesque({
+//
+// Every font is a file in this repository (src/app/fonts) rather than something fetched from Google while the site is built. A build on
+// Vercel was twice handed an answer for one of them that the font loader could not read (a different font each time), and that failed the whole
+// deployment. A file we hold cannot do that. They are the exact files `next/font/google` used to serve: the latin subset, which is the only
+// part of each font the site's text uses. Characters outside it (arrows, box drawing, Devanagari) were never in any Google subset either, and
+// fall back to the system fonts exactly as before.
+const bricolage = localFont({
+  src: [{ path: "./fonts/bricolage-grotesque-latin.woff2", weight: "200 800", style: "normal" }],
   variable: "--font-bricolage",
-  subsets: ["latin"],
-  axes: ["opsz"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  style: ["italic"], // only ever used in italic (the .serif class), so the upright file is never shipped
-  axes: ["SOFT", "WONK", "opsz"],
-});
-
-const dmSans = DM_Sans({
-  variable: "--font-dmsans",
-  subsets: ["latin"],
-  axes: ["opsz"],
-});
-
-const spaceMono = Space_Mono({
-  variable: "--font-spacemono",
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
-// Caveat is kept in the repository rather than fetched from Google at build time. One build on Vercel got an answer for it that the font
-// loader could not read, which failed the whole deployment, and a file we hold ourselves cannot do that. It is the latin subset of the
-// variable font (weights 400 to 700), which is the part of it the site uses.
-const caveat = localFont({
-  src: "./fonts/caveat-latin.woff2",
-  variable: "--font-hand",
-  weight: "400 700",
   display: "swap",
   adjustFontFallback: "Arial",
 });
 
-const pixelify = Pixelify_Sans({
+// Only ever used in italic (the .serif class), so the upright file was never shipped and still is not.
+const fraunces = localFont({
+  src: [{ path: "./fonts/fraunces-italic-latin.woff2", weight: "100 900", style: "italic" }],
+  variable: "--font-fraunces",
+  display: "swap",
+  adjustFontFallback: "Times New Roman",
+});
+
+const dmSans = localFont({
+  src: [{ path: "./fonts/dm-sans-latin.woff2", weight: "100 1000", style: "normal" }],
+  variable: "--font-dmsans",
+  display: "swap",
+  adjustFontFallback: "Arial",
+});
+
+const spaceMono = localFont({
+  src: [
+    { path: "./fonts/space-mono-400-latin.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/space-mono-700-latin.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-spacemono",
+  display: "swap",
+  adjustFontFallback: "Arial",
+});
+
+// The latin subset of the variable font (weights 400 to 700).
+const caveat = localFont({
+  src: [{ path: "./fonts/caveat-latin.woff2", weight: "400 700", style: "normal" }],
+  variable: "--font-hand",
+  display: "swap",
+  adjustFontFallback: "Arial",
+});
+
+// A variable font too (weights 400 to 700); the site uses 500 and 700.
+const pixelify = localFont({
+  src: [{ path: "./fonts/pixelify-sans-latin.woff2", weight: "400 700", style: "normal" }],
   variable: "--font-pixel",
-  subsets: ["latin"],
-  weight: ["500", "700"],
+  display: "swap",
+  adjustFontFallback: "Arial",
+});
+
+// The Cyrillic part of Pixelify Sans. The one character the site takes from it is № (on the ticket sticker). A font file here has no
+// unicode-range of its own, so it is a font of its own, placed behind the latin one in the --f-pixel stack (see home.css).
+const pixelifyCyrillic = localFont({
+  src: [{ path: "./fonts/pixelify-sans-cyrillic.woff2", weight: "400 700", style: "normal" }],
+  variable: "--font-pixel-cyrillic",
+  display: "swap",
+  adjustFontFallback: false,
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -160,7 +181,7 @@ export default function RootLayout({
         <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structuredData)} />
       </head>
       <body
-        className={`${bricolage.variable} ${fraunces.variable} ${dmSans.variable} ${spaceMono.variable} ${caveat.variable} ${pixelify.variable} antialiased`}
+        className={`${bricolage.variable} ${fraunces.variable} ${dmSans.variable} ${spaceMono.variable} ${caveat.variable} ${pixelify.variable} ${pixelifyCyrillic.variable} antialiased`}
       >
         <AppProviders>{children}</AppProviders>
         <script dangerouslySetInnerHTML={{ __html: REVEAL_SCRIPT }} />

@@ -41,4 +41,4 @@ These are trademarks of their owners. The files are from Wikimedia Commons where
 
 ## Fonts
 
-All fonts are free under the [SIL Open Font License 1.1](https://openfontlicense.org): Bricolage Grotesque, Fraunces, DM Sans, Space Mono, Caveat and Pixelify Sans. They are loaded from Google Fonts through `next/font`, except Caveat, whose latin subset is kept in the repository (`src/app/fonts/caveat-latin.woff2`, from Google Fonts, v23) so that a deployment never depends on Google answering at build time.
+All fonts are free under the [SIL Open Font License 1.1](https://openfontlicense.org): Bricolage Grotesque, Fraunces, DM Sans, Space Mono, Caveat and Pixelify Sans. They are kept in the repository (`src/app/fonts/`, the latin subsets, and the Cyrillic subset of Pixelify Sans, as served by Google Fonts) and loaded with `next/font/local`, so that a deployment never depends on Google answering at build time.

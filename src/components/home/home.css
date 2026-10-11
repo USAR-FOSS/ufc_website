@@ -26,7 +26,7 @@
   --font-editorial: var(--font-fraunces), ui-serif, Georgia, serif;
   --font-code: var(--font-spacemono), ui-monospace, SFMono-Regular, monospace;
   --f-hand: var(--font-hand), "Comic Sans MS", cursive;
-  --f-pixel: var(--font-pixel), ui-monospace, monospace;
+  --f-pixel: var(--font-pixel), var(--font-pixel-cyrillic), ui-monospace, monospace;
 
   position: relative;
   background: var(--ink);
