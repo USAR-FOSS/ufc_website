@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useContext } from "react";
-import { SessionProvider, signIn, signOut, useSession } from "next-auth/react";
+import { SessionProvider, getProviders, signIn, signOut, useSession } from "next-auth/react";
 
 export interface AuthUser {
   id: string;
@@ -13,9 +13,19 @@ export interface AuthUser {
   image?: string | null;
 }
 
+/** The id of the shared sign in service among the providers the server offers (see server/auth/oidc.ts). */
+const SHARED_SIGN_IN = "fossclub";
+
+export interface LoginOptions {
+  /** Go straight to GitHub, even if the shared sign in is on. This is the second, quiet step of a shared sign in. */
+  github?: boolean;
+  /** The GitHub username to suggest to GitHub, so the second step is for the same person as the first. */
+  hint?: string;
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
-  loginWithGitHub: () => Promise<void>;
+  loginWithGitHub: (options?: LoginOptions) => Promise<void>;
   logout: () => Promise<void>;
   /** Re-reads the signed in member from the server, for after something on their profile changed. */
   refresh: () => Promise<void>;
@@ -38,11 +48,22 @@ function AuthStateProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     user,
-    loginWithGitHub: async () => {
-      await signIn("github", { callbackUrl: "/dashboard" });
+    loginWithGitHub: async (options) => {
+      // With the shared sign in switched on, the server lists it as a provider and people go through it first. Otherwise (or for the
+      // second step) it is GitHub directly, as it always was.
+      const shared = !options?.github && !!(await getProviders())?.[SHARED_SIGN_IN];
+      if (shared) {
+        await signIn(SHARED_SIGN_IN, { callbackUrl: "/dashboard" });
+      } else {
+        await signIn("github", { callbackUrl: "/dashboard" }, options?.hint ? { login: options.hint } : undefined);
+      }
     },
     logout: async () => {
-      await signOut({ callbackUrl: "/" });
+      // Clears this site's session, then asks the shared service to end its session too (it just goes home when that is switched off).
+      await signOut({ redirect: false });
+      // A full page load on purpose: that route is not a page, it redirects out to the shared service.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/api/auth/oidc-logout");
     },
     refresh: async () => {
       await update();

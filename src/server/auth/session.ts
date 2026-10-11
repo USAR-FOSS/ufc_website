@@ -8,7 +8,6 @@ export interface AuthSession {
   userId: string;
   role: string;
   githubUsername: string;
-  githubAccessToken: string;
 }
 
 type SessionRead = { session: AuthSession } | { session: null; reauth: boolean };
@@ -19,13 +18,7 @@ async function readSession(request: NextRequest): Promise<SessionRead> {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  if (
-    !token ||
-    typeof token.userId !== "string" ||
-    typeof token.role !== "string" ||
-    typeof token.githubUsername !== "string" ||
-    typeof token.githubAccessToken !== "string"
-  ) {
+  if (!token || typeof token.userId !== "string" || typeof token.role !== "string" || typeof token.githubUsername !== "string") {
     return { session: null, reauth: false };
   }
 
@@ -40,7 +33,6 @@ async function readSession(request: NextRequest): Promise<SessionRead> {
       userId: token.userId,
       role: token.role,
       githubUsername: token.githubUsername,
-      githubAccessToken: token.githubAccessToken,
     },
   };
 }

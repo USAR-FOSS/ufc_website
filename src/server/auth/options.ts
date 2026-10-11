@@ -2,6 +2,8 @@ import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import { authService } from "@/server/features/auth/auth.service";
+import { OIDC_PROVIDER_ID, hasUsableGitHubConnection, oidcClaims, oidcProvider, oidcSettings } from "@/server/auth/oidc";
+import { TOKEN_FIELDS } from "@/server/integrations/github-token";
 import { prisma } from "@/server/db/prisma";
 import { syncGitHubUser } from "@/server/features/github/github-sync.service";
 import { enqueueGitHubSync } from "@/server/jobs/github-sync";
@@ -58,6 +60,8 @@ const syncWithin = (userId: string, ms: number) =>
       .finally(() => clearTimeout(timer));
   });
 
+const oidc = oidcSettings();
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GitHubProvider({
@@ -69,6 +73,8 @@ export const authOptions: NextAuthOptions = {
         },
       },
     }),
+    // The shared sign in service. Only present when it is switched on (see server/auth/oidc.ts).
+    ...(oidc ? [oidcProvider(oidc)] : []),
   ],
   // Seven days, not the default thirty: the token carries the member's GitHub access token, so it should not live for long.
   session: {
@@ -78,6 +84,20 @@ export const authOptions: NextAuthOptions = {
   jwt: { maxAge: 7 * 24 * 60 * 60 },
   callbacks: {
     async signIn({ account, profile }) {
+      // Signed in through the shared service. If the member already has a working GitHub connection stored, that is all that is needed.
+      // Otherwise they go through GitHub once more, which is what stores one (and creates the profile of someone brand new).
+      if (account?.provider === OIDC_PROVIDER_ID) {
+        const claims = oidcClaims(profile);
+        if (!claims) return false;
+        const user = await prisma.user.findUnique({ where: { githubId: claims.githubId }, select: TOKEN_FIELDS });
+        if (user && (await hasUsableGitHubConnection(user))) {
+          await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date() } });
+          return true;
+        }
+        const hint = /^[A-Za-z0-9-]{1,39}$/.test(claims.login) ? `&hint=${claims.login}` : "";
+        return `/login?step=github${hint}`;
+      }
+
       const githubProfile = asGitHubProfile(profile);
 
       if (account?.provider !== "github" || !account.access_token || !githubProfile) {
@@ -106,6 +126,25 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, account, profile, trigger }) {
+      if (account?.provider === OIDC_PROVIDER_ID) {
+        const claims = oidcClaims(profile);
+        const user = claims
+          ? await prisma.user.findUnique({
+              where: { githubId: claims.githubId },
+              select: { id: true, role: true, githubUsername: true, leetcodeUsername: true },
+            })
+          : null;
+        if (claims && user) {
+          token.userId = user.id;
+          token.role = user.role;
+          token.githubUsername = user.githubUsername ?? claims.login;
+          token.leetcodeUsername = user.leetcodeUsername ?? undefined;
+          // The shared service gave no GitHub token, and none is kept in the cookie: stored tokens are used server side.
+          delete token.githubAccessToken;
+        }
+        return token;
+      }
+
       const githubProfile = asGitHubProfile(profile);
 
       if (account?.provider === "github" && account.access_token && githubProfile) {

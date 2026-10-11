@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Check } from "lucide-react";
 import { MaskLine, Reveal } from "@/components/home/motion-primitives";
 import { Badge, Barcode, Mark, Pin, Sticker, Tape } from "@/components/home/scrap";
@@ -17,21 +17,31 @@ const PERKS = [
   { t: "The member list", b: "Find the rest of the club and see what they're building." },
 ];
 
-function Pass() {
+function Pass({ githubStep = false, hint }: { githubStep?: boolean; hint?: string }) {
   const { loginWithGitHub } = useAuth();
-  const [redirecting, setRedirecting] = useState(false);
+  const [redirecting, setRedirecting] = useState(githubStep);
   const [failed, setFailed] = useState(false);
 
-  const go = async () => {
+  const go = async (options?: { github?: boolean; hint?: string }) => {
     setRedirecting(true);
     setFailed(false);
     try {
-      await loginWithGitHub();
+      await loginWithGitHub(options);
     } catch {
       setRedirecting(false);
       setFailed(true);
     }
   };
+
+  // The second step of a shared sign in: this site needs GitHub's connection for the member's stats, so it goes to GitHub straight away.
+  // GitHub does not ask again for someone who has already allowed the app.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!githubStep || started.current) return;
+    started.current = true;
+    void go({ github: true, ...(hint ? { hint } : {}) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [githubStep, hint]);
 
   return (
     <div className="relative mx-auto w-full max-w-md">
@@ -124,7 +134,7 @@ function Pass() {
 }
 
 /** `reauth` is set when the site signed someone out because their GitHub connection ran out (GitHub only keeps these for 8 hours). */
-export function Login({ reauth = false }: { reauth?: boolean }) {
+export function Login({ reauth = false, githubStep = false, hint }: { reauth?: boolean; githubStep?: boolean; hint?: string }) {
   return (
     <section className="pat-dots relative flex min-h-[100svh] items-center overflow-hidden bg-[var(--butter)] text-[var(--ink)]">
       <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 pb-20 pt-32 sm:px-8 lg:grid-cols-12 lg:gap-12 lg:pb-24 lg:pt-36">
@@ -180,7 +190,7 @@ export function Login({ reauth = false }: { reauth?: boolean }) {
 
         <div className="order-first lg:order-none lg:col-span-5">
           <div className="relative pt-20 lg:pt-24">
-            <Pass />
+            <Pass githubStep={githubStep} {...(hint ? { hint } : {})} />
           </div>
         </div>
       </div>

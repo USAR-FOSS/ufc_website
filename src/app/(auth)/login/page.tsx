@@ -11,12 +11,14 @@ export const metadata: Metadata = pageMetadata({
   noindex: true,
 });
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reauth?: string }> }) {
-  const { reauth } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reauth?: string; step?: string; hint?: string }> }) {
+  const { reauth, step, hint } = await searchParams;
+  // `hint` only suggests an account to GitHub, so it is cut down to what a GitHub username can be.
+  const safeHint = hint && /^[A-Za-z0-9-]{1,39}$/.test(hint) ? hint : undefined;
   return (
     <HomeShell>
       <main>
-        <Login reauth={reauth === "1"} />
+        <Login reauth={reauth === "1"} githubStep={step === "github"} {...(safeHint ? { hint: safeHint } : {})} />
       </main>
       <Footer />
     </HomeShell>
