@@ -20,6 +20,8 @@ export const reauthRequired = () => new ApiError("Your GitHub connection has run
 export const forbidden = (message = "Forbidden") => new ApiError(message, 403);
 export const notFound = (message: string) => new ApiError(message, 404);
 export const conflict = (message: string) => new ApiError(message, 409);
+/** 503: a service this request depends on could not answer, so the same request is worth making again later. */
+export const serviceUnavailable = (message: string) => new ApiError(message, 503);
 /** 429, with the standard Retry-After header so clients and proxies know when to come back. */
 export const tooManyRequests = (message: string, retryAfterSeconds: number, details: Record<string, unknown> = {}) =>
   new ApiError(message, 429, { ...details, retryAfterSeconds }, { "Retry-After": String(Math.max(1, Math.ceil(retryAfterSeconds))) });

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { invalidateCache } from "@/server/cache/cache";
 import { requireSession } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
-import { badRequest, conflict, json, notFound, withApiErrorHandling } from "@/server/http/api";
+import { badRequest, conflict, json, notFound, serviceUnavailable, withApiErrorHandling } from "@/server/http/api";
 import { enforceRateLimit } from "@/server/security/rate-limit";
 import { leetcodeService } from "@/server/integrations/leetcode.service";
 
@@ -44,7 +44,12 @@ export const POST = withApiErrorHandling(async (request: NextRequest) => {
   }
 
   const stats = await leetcodeService.getUserStats(username);
-  if (!stats) {
+  // Needing to try again is not the same as a wrong username: if nothing answered, the member should be told to come back rather than that
+  // their profile does not exist.
+  if (stats === undefined) {
+    throw serviceUnavailable("LeetCode is not answering right now. Please try again in a moment.");
+  }
+  if (stats === null) {
     throw notFound("We couldn't find that LeetCode profile. Check the spelling, and that the profile is public.");
   }
 

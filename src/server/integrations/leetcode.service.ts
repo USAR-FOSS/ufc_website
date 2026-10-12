@@ -72,18 +72,34 @@ export class LeetCodeService {
     }
   }
 
-  /** The community mirror of LeetCode's numbers. It sleeps when idle, rate-limits, and can lag behind, so it is only a last resort. */
-  private async fromCommunityApi(username: string): Promise<LeetCodeUserStats | null> {
+  /**
+   * The community mirror of LeetCode's numbers. It sleeps when idle, rate-limits, and can lag behind, so it is only a last resort.
+   * It answers in the same three states as LeetCode itself: the stats, `null` when it says the user does not exist, and `undefined` when it
+   * could not be asked. A reply we cannot read is not evidence that a member's profile has gone.
+   */
+  private async fromCommunityApi(username: string): Promise<LeetCodeUserStats | null | undefined> {
     try {
       const response = await fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`, {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(6_000),
       });
-      if (!response.ok) return null;
+      if (!response.ok) return undefined;
 
-      const data = await response.json();
-      // For a name that does not exist this service still answers 200, with an error instead of numbers. Only trust real numbers.
-      if (typeof data.solvedProblem !== "number" || data.errors) return null;
+      const data = (await response.json()) as {
+        solvedProblem?: number;
+        ranking?: number;
+        reputation?: number;
+        easySolved?: number;
+        mediumSolved?: number;
+        hardSolved?: number;
+        acceptanceRate?: number | null;
+        errors?: { message?: string }[];
+      };
+      // For a name that does not exist this service still answers 200, with the error instead of numbers. Only that explicit message says
+      // the profile is missing; any other body without numbers is a reply we could not read, so we do not yet know anything.
+      if (typeof data?.solvedProblem !== "number" || data?.errors) {
+        return data?.errors?.some((e) => /does not exist/i.test(e?.message ?? "")) ? null : undefined;
+      }
 
       return {
         username,
@@ -97,7 +113,7 @@ export class LeetCodeService {
       };
     } catch (error) {
       console.warn("Community LeetCode API failed:", error);
-      return null;
+      return undefined;
     }
   }
 
@@ -106,11 +122,17 @@ export class LeetCodeService {
    * its answer, so they all see the same numbers. The community API is only a fallback when LeetCode could not be reached, and `fast` skips it
    * (the live poll would rather try again in a minute than wait on a slow service).
    * Two sources that can disagree, taking turns, made one member's numbers (and leaderboard place) swing back and forth.
+   *
+   * The answer keeps the same three states all the way out to the caller: the stats, `null` when a source said the username does not exist, and
+   * `undefined` when no source could be asked. Only the second of those is the member's mistake.
    */
-  async getUserStats(username: string, options: { fast?: boolean } = {}): Promise<LeetCodeUserStats | null> {
+  async getUserStats(username: string, options: { fast?: boolean } = {}): Promise<LeetCodeUserStats | null | undefined> {
     const official = await this.fromLeetCode(username);
     if (official !== undefined) return official;
-    return options.fast ? null : this.fromCommunityApi(username);
+    // LeetCode itself could not answer, so all we know is that we do not know. The live poll would rather try again in a minute than wait on
+    // the slow mirror, and either way nobody may be told the profile is missing yet.
+    if (options.fast) return undefined;
+    return this.fromCommunityApi(username);
   }
 
   /**
@@ -198,12 +220,19 @@ export class LeetCodeService {
     return { changed: true, activityAdded: rises.length > 0 };
   }
 
-  /** Fetches the numbers from LeetCode and stores them. */
+  /**
+   * Fetches the numbers from LeetCode and stores them. A profile a source has confirmed is gone comes back as `skipped`, because asking again
+   * changes nothing. An answer we could not get throws instead, so the job that called us is retried rather than counted as done.
+   */
   async syncUserStats(userId: string, leetcodeUsername: string) {
     const stats = await this.getUserStats(leetcodeUsername);
 
-    if (!stats) {
-      throw new Error(`LeetCode profile not found for ${leetcodeUsername}`);
+    if (stats === null) {
+      return { skipped: "profile not found" as const };
+    }
+
+    if (stats === undefined) {
+      throw new Error(`LeetCode could not be reached for ${leetcodeUsername}`);
     }
 
     const { changed, activityAdded } = await this.saveStats(userId, leetcodeUsername, stats);

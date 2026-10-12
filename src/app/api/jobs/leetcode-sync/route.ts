@@ -21,6 +21,13 @@ const handler = async (request: Request) => {
   }
 
   const result = await leetcodeService.syncUserStats(user.id, user.leetcodeUsername);
+
+  // LeetCode says this username is gone: there is nothing to fetch, and nothing for QStash to retry. (An outage still throws, so that one is
+  // retried.)
+  if ("skipped" in result) {
+    return Response.json({ success: true, reason: body.reason, skipped: result.skipped });
+  }
+
   // Caches are only cleared when the database really changed.
   if (result.changed)
     await invalidateCache("dashboard", "leaderboard", "members", ...(result.activityAdded ? (["activity-feed"] as const) : []));

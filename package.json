@@ -8,6 +8,7 @@
     "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "tsx --conditions=react-server --test 'src/**/*.test.ts'",
     "db:seed": "tsx scripts/seed.mts",
     "db:unseed": "tsx scripts/seed.mts unseed",
     "lint:fix": "eslint . --fix",
@@ -46,6 +47,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.8",
     "prettier": "^3.9.9",
+    "server-only": "^0.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "npm:@typescript/typescript6@6.0.2"
