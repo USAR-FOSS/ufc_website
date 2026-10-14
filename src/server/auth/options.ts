@@ -1,6 +1,7 @@
 import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
+import { isAdminAccount } from "@/server/auth/roles";
 import { authService } from "@/server/features/auth/auth.service";
 import { OIDC_PROVIDER_ID, hasUsableGitHubConnection, oidcClaims, oidcProvider, oidcSettings } from "@/server/auth/oidc";
 import { TOKEN_FIELDS } from "@/server/integrations/github-token";
@@ -91,10 +92,13 @@ export const authOptions: NextAuthOptions = {
         if (!claims) return false;
         const user = await prisma.user.findUnique({
           where: { githubId: claims.githubId },
-          select: { ...TOKEN_FIELDS, leetcodeUsername: true },
+          select: { ...TOKEN_FIELDS, leetcodeUsername: true, githubUsername: true },
         });
         if (user && (await hasUsableGitHubConnection(user))) {
-          await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date() } });
+          // The role is worked out from the admin list on every sign in, as the GitHub sign in does, so a newly named admin is one the
+          // next time they sign in whichever way they do it.
+          const role = isAdminAccount({ githubId: claims.githubId, githubUsername: user.githubUsername }) ? "ADMIN" : "MAINTAINER";
+          await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date(), role } });
           // The same refresh a GitHub sign in does: their numbers are brought up to date in the background on every sign in.
           if (user.leetcodeUsername) {
             await enqueueLeetCodeSync(user.id, "login").catch((error) => console.error("Unable to enqueue the LeetCode sync:", error));
