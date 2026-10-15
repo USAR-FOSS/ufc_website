@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Calendar, MapPin, Search } from "lucide-react";
 import { GithubIcon } from "@/components/ui/social-icons";
 import { Pin, Tape } from "@/components/home/scrap";
-import { useApi } from "@/components/dashboard/use-api";
+import { useApi, useVersionStream } from "@/components/dashboard/use-api";
 import { Avatar, Empty, ErrorPanel, PageHeader, Pager, pageRange } from "@/components/dashboard/ui";
 import { TAPE_CYCLE } from "@/data/tones";
 import { SkeletonCards, SkeletonShell } from "@/components/dashboard/skeleton";
@@ -25,21 +25,29 @@ interface Member {
 const PER_PAGE = 20;
 const TILT = [-1.4, 1, -0.8, 1.5, -1.1, 0.8];
 
-type MembersResponse = { members?: Member[]; total?: number; totalPages?: number };
+type MembersResponse = { members?: Member[]; total?: number };
 
 export default function MembersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const q = search ? `&search=${encodeURIComponent(search)}` : "";
-  const { data, error, loading, reload } = useApi<MembersResponse>(
-    `/api/dashboard/members?limit=${PER_PAGE}&offset=${(page - 1) * PER_PAGE}${q}`,
-    {
-      errorMessage: "We couldn't load the member list just now.",
-    },
+  // Everyone is loaded once, and searching and turning pages happen here in the browser, so typing never asks the server anything.
+  const { data, error, loading, reload, refresh } = useApi<MembersResponse>("/api/dashboard/members?all=1", {
+    errorMessage: "We couldn't load the member list just now.",
+  });
+  useVersionStream("members", refresh); // someone joined or changed their profile: pick it up quietly
+
+  const all = useMemo(() => data?.members ?? [], [data]);
+  const needle = search.trim().toLowerCase();
+  const matches = useMemo(
+    () =>
+      needle ? all.filter((m) => `${m.name ?? ""} ${m.githubUsername ?? ""} ${m.location ?? ""}`.toLowerCase().includes(needle)) : all,
+    [all, needle],
   );
-  const members = data?.members ?? [];
-  const total = data?.total ?? 0;
-  const pages = data?.totalPages ?? 0;
+  const total = matches.length;
+  const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+  // A shorter list (a search, or someone leaving) can leave the current page past the end.
+  const current = Math.min(page, pages);
+  const members = matches.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
   return (
     <div className="space-y-10">
@@ -50,8 +58,8 @@ export default function MembersPage() {
         tone="lilac"
         art="heart"
         sub={
-          total
-            ? `${total} ${total === 1 ? "person" : "people"} building in the open together.`
+          all.length
+            ? `${all.length} ${all.length === 1 ? "person" : "people"} building in the open together.`
             : "Everyone who has signed in, in one place."
         }
       >
@@ -65,7 +73,7 @@ export default function MembersPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search by name…"
+            placeholder="Search by name, username or place…"
             className="field !pl-12"
           />
         </label>
@@ -80,8 +88,8 @@ export default function MembersPage() {
       ) : members.length === 0 ? (
         <Empty
           art="heart"
-          title={search ? "Nobody found" : "No members yet"}
-          body={search ? `Nobody matches "${search}". Try a different name.` : "Be the first one in."}
+          title={needle ? "Nobody found" : "No members yet"}
+          body={needle ? `Nobody matches "${search.trim()}". Try a different name.` : "Be the first one in."}
         />
       ) : (
         <ul className="grid gap-x-7 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
@@ -155,10 +163,10 @@ export default function MembersPage() {
       )}
 
       <Pager
-        page={page}
+        page={current}
         pages={pages}
         onChange={setPage}
-        label={pageRange(page, PER_PAGE, total, "members", search ? ` matching "${search}"` : "")}
+        label={pageRange(current, PER_PAGE, total, "members", needle ? ` matching "${search.trim()}"` : "")}
       />
     </div>
   );
