@@ -70,7 +70,9 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GITHUB_SECRET ?? "",
       authorization: {
         params: {
-          scope: "read:user user:email read:org",
+          // Only what a member's profile and numbers need. Organisation access (`read:org`) is deliberately not asked for: it makes GitHub
+          // list the person's organisations and teams on the consent screen, and nothing the site shows depends on it.
+          scope: "read:user user:email",
         },
       },
     }),

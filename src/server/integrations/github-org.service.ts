@@ -26,6 +26,10 @@ export interface OrgRepoSummary {
   html_url: string;
 }
 
+/**
+ * Organisation statistics for an admin. Sign in does not ask for organisation access, so this sees what the organisation shows publicly:
+ * its public repositories and its public members.
+ */
 export class OrgGitHubService {
   private octokit: Octokit;
   private org: string;
