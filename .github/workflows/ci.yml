@@ -67,6 +67,10 @@ jobs:
 
       - run: npm ci
 
+      # The generated Prisma client is not kept in the repository, and a test that imports server code can reach it through a module it uses.
+      # Generating it needs no database and no network: the engines arrived with npm ci, and the build job below runs the same command.
+      - run: npx prisma generate
+
       # The LeetCode service is the one place where "we could not ask" and "that profile is not there" have to stay apart, so all three cases
       # are pinned with the test runner Node already has. Nothing here needs a database or the network: fetch is replaced inside the tests.
       - run: npm test
