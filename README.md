@@ -95,6 +95,7 @@ Set `NEXTAUTH_URL=http://localhost:3000` too, then restart `npm run dev`. Withou
 | `npm run dev`           | Start the dev server                                                               |
 | `npm run build`         | Generate the Prisma client and make a production build                             |
 | `npm run lint`          | Run ESLint. It should finish with no warnings                                      |
+| `npm test`              | Run the unit tests                                                                 |
 | `npm run format`        | Format everything with Prettier                                                    |
 | `npm run db:seed`       | Add five fake members so the leaderboard has something to show                     |
 | `npm run db:unseed`     | Remove those fake members again                                                    |
