@@ -42,7 +42,7 @@ export function CommunityPartners() {
         </p>
       </Reveal>
 
-      <ul className="mt-8 grid gap-4 sm:gap-6 md:grid-cols-3">
+      <ul className="mt-8 grid gap-4 sm:gap-6 md:grid-cols-2">
         {COMMUNITY_PARTNERS.map((p, i) => (
           <li key={p.name}>
             <Reveal delay={i * 0.08} className="h-full">

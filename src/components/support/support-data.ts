@@ -88,6 +88,7 @@ export const COMMUNITY_PARTNERS: Partner[] = [
     src: "/logos/devsphere.webp",
   },
   { name: "Backstage", href: "https://www.mybackstage.in/", label: "mybackstage.in", kind: "website", src: "/logos/backstage.webp" },
+  { name: "DTC FOSS Club", href: "https://thefossclub.org", label: "thefossclub.org", kind: "website", src: "/logos/dtc-foss-club.webp" },
 ];
 
 /** Who backed which event of ours, newest first. Links go to the event pages. */
