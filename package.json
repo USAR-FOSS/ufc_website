@@ -32,7 +32,7 @@
     "framer-motion": "^13.1.1",
     "lucide-react": "^1.38.0",
     "matter-js": "^0.20.0",
-    "next": "^16.3.8",
+    "next": "^16.4.3",
     "next-auth": "^4.24.15",
     "prisma": "^7.10.0",
     "react": "19.2.8",
